@@ -1,0 +1,86 @@
+//@version=5
+strategy("TeeLek Lab 02 DCA with Hedging", overlay=true , pyramiding = 10000 )
+// ########################################
+// ทดลองทำการซื้อ DCA ทุกวัน ในเวลา 8:00 
+// ปกติเริ่มวันใหม่ จะเป็น 7:00 ในไทย แต่เราจะซื้อแท่งถัดไปของวันใหม่ 
+// เพื่อให้กราฟมันวิ่งไปก่อน แล้วก็ค่อยดูว่าจะ action อะไรยังไงต่อไป
+// กำหนดให้ใช้กราฟ Timeframe 15 minute เท่านั้น
+// ######################################## 
+// เมื่อราคาลงมาต่ำกว่าเส้น DCA จะให้ทำการเปิด Hedging Short 100%
+// ถ้ายังอยู่ใต้เส้น DCA และมีการเปิด Long เพิ่ม ก็จะให้เปิด Short เพิ่มเพื่อ Hedging Short 100% ด้วย
+// เมื่อราคาสูงกว่าเส้น DCA จะให้ทำการปิด Hedging Short 100%
+// ######################################## 
+
+// ----------------------------------------
+// Input
+// ----------------------------------------
+DATE_START = input.time(timestamp("1 July 2024"), title="Start Date",group="Working Date")
+DATE_END = input.time(timestamp("1 Aug 2024"), title="End Date",group="Working Date")
+DCA_SIZE_BTC = input.float(0.002, title="DCA Size (BTC)",group="Trade Setup")
+BUY_SIDE = input.string(title='Long/Short', options=["Long","Short"], defval="Short")
+
+// ----------------------------------------
+// Variable
+// ----------------------------------------
+var Long_AvgPrice = float(0)
+var Long_BTC = float(0)
+var Short_AvgPrice = float(0)
+var Short_BTC = float(0)
+
+// ----------------------------------------
+// Signal
+// ----------------------------------------
+// กำหนดเวลาที่จะซื้อ DCA ในแต่ละวัน ของไทยเราเป็น GMT+7 
+// เพราะฉะนั้น จะซื้อแท่งถัดไปของ 7:45 หรือก็คือ 8:00 น. 
+buyHour = 0
+buyMinute = 45
+isTimeToBuy = (hour == buyHour) and (minute == buyMinute)
+
+// ----------------------------------------
+// Strategy // DCA Long Every Day
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END and isTimeToBuy
+    if Long_BTC>0
+        Long_AvgPrice:=((close*DCA_SIZE_BTC) + (Long_AvgPrice*Long_BTC))/(Long_BTC+DCA_SIZE_BTC)
+        Long_BTC:=Long_BTC+DCA_SIZE_BTC
+    else
+        Long_AvgPrice:=close
+        Long_BTC:=DCA_SIZE_BTC
+    if BUY_SIDE=="Long"
+        strategy.entry("L", strategy.long,qty=DCA_SIZE_BTC)
+
+// ----------------------------------------
+// Strategy // Hedging Short
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END and isTimeToBuy and close<Long_AvgPrice
+    diff=Long_BTC-Short_BTC
+    if Short_BTC>0
+        Short_AvgPrice:=((close*diff) + (Short_AvgPrice*Short_BTC))/(Short_BTC+diff)
+        Short_BTC:=Short_BTC+diff
+    else
+        Short_AvgPrice:=close
+        Short_BTC:=diff
+    if BUY_SIDE=="Short"
+        strategy.entry("S", strategy.short,qty=diff)
+
+// ----------------------------------------
+// Strategy // Close Hedging on Over DCA Line
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END and isTimeToBuy and close>Long_AvgPrice
+    Short_AvgPrice:=0
+    Short_BTC:=0
+    if BUY_SIDE=="Short"
+        strategy.close_all()
+
+// ----------------------------------------
+// Close all position เมื่อเลยเวลาที่กำหนดไว้ไป
+// ----------------------------------------
+if time >= DATE_END
+    strategy.close_all()
+
+// ----------------------------------------
+// Draw
+// ----------------------------------------
+// dca line
+plot(Long_AvgPrice, "DCA Base Line", Long_AvgPrice[1]>0 and Long_AvgPrice>0 ? #1368de : na  , linewidth=2)
+plot(Short_AvgPrice, "Short Avg Price", Short_AvgPrice[1]>0 and Short_AvgPrice>0 ? #ee0f0f : na  , linewidth=1)
