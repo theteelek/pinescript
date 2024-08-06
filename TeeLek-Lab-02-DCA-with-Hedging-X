@@ -1,5 +1,4 @@
 //@version=5
-// strategy("TeeLek Lab 02 DCA with Hedging", overlay=true , pyramiding = 10000 )
 indicator("TeeLek Lab 02 DCA with Hedging X")
 // ########################################
 // ทดลองทำการซื้อ DCA ทุกวัน ในเวลา 8:00 
@@ -23,11 +22,11 @@ BUY_SIDE = input.string(title='Long/Short', options=["Long","Short"], defval="Sh
 // ----------------------------------------
 // Variable
 // ----------------------------------------
-var Long_BTC = float(0)
 var Long_AvgPrice = float(0)
+var Long_BTC = float(0)
 var Short_AvgPrice = float(0)
 var Short_BTC = float(0)
-//------------
+
 var Long_AccomProfit = float(0)
 var Long_UnrealizeProfit = float(0)
 var Short_AccomProfit = float(0)
@@ -44,7 +43,7 @@ buyMinute = 45
 isTimeToBuy = (hour == buyHour) and (minute == buyMinute)
 
 // ----------------------------------------
-// Strategy // DCA Long Every Day
+// Strategy Long
 // ----------------------------------------
 if time >= DATE_START and time < DATE_END and isTimeToBuy
     if Long_BTC>0
@@ -69,7 +68,6 @@ if time >= DATE_START and time < DATE_END and isTimeToBuy and close<Long_AvgPric
         Short_BTC:=diff
     // if BUY_SIDE=="Short"
     //     strategy.entry("S", strategy.short,qty=diff)
-
 // ----------------------------------------
 // Strategy // Close Hedging on Over DCA Line
 // ----------------------------------------
@@ -89,7 +87,7 @@ if time >= DATE_START and time < DATE_END and isTimeToBuy and close>Long_AvgPric
 // ----------------------------------------
 // Calculate UnrealizeProfit 
 // ----------------------------------------
-if time >= DATE_START and time < DATE_END and isTimeToBuy
+if time >= DATE_START and time < DATE_END
     Long_UnrealizeProfit:=(close*Long_BTC)-(Long_AvgPrice*Long_BTC)
     Short_UnrealizeProfit:=(Short_AvgPrice*Short_BTC)-(close*Short_BTC)
     TotalProfit:=Long_UnrealizeProfit+Short_UnrealizeProfit+Long_AccomProfit+Short_AccomProfit
