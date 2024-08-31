@@ -1,0 +1,189 @@
+//@version=5
+indicator("TeeLek Lab 05 Assemble", overlay=true)
+
+// ----------------------------------------
+// Input
+// ----------------------------------------
+DATE_START = input.time(timestamp("1 July 2024"), title="Start Date",group="Working Date")
+DATE_END = input.time(timestamp("1 Aug 2024"), title="End Date",group="Working Date")
+DCA_SIZE_USDT = input.float(10, title="DCA Size (USDT)",group="Trade Setup")
+
+//---------------------------------
+// Function
+//--------------------------------- 
+hma(src, length) =>
+    halfLength = math.round(length / 2)
+    sqrtLength = math.round(math.sqrt(length))
+    wma1 = ta.wma(src, halfLength)
+    wma2 = ta.wma(src, length)
+    hmaValue = ta.wma(2 * wma1 - wma2, sqrtLength)
+    hmaValue
+
+// ----------------------------------------
+// Variable
+// ----------------------------------------
+var DCA_SIZE_BTC = float(0) 
+//------------
+var DCA_BTC = float(0)
+var DCA_AvgPrice = float(0)
+var DCA_USDT_Value = float(0)
+var DCA_BTC_Value = float(0)
+var DCA_Profit = float(0)
+var DCA_UnrealizeProfit = float(0)
+//------------
+var Long_BTC = float(0)
+var Long_AvgPrice = float(0)
+var Long_USDT_Value = float(0)
+var Long_BTC_Value = float(0)
+var Long_Profit = float(0)
+var Long_UnrealizeProfit = float(0)
+//------------
+var Short_BTC = float(0)
+var Short_AvgPrice = float(0)
+var Short_USDT_Value = float(0)
+var Short_BTC_Value = float(0)
+var Short_Profit = float(0)
+var Short_UnrealizeProfit = float(0)
+//------------
+var diff = float(0)
+var tempBTC = float(0)
+var tempUSDT = float(0)
+
+//---------------------------------
+// Signal
+//---------------------------------
+// HMA
+HMA_Line = hma(close,5)
+var HMA_LineColor = color(na)
+if HMA_Line>HMA_Line[1]
+    HMA_LineColor:=#00FF00
+else
+    HMA_LineColor:=#FF0000
+
+// ----------------------------------------
+// Strategy // DCA Every Day
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END
+    DCA_USDT_Value:=DCA_USDT_Value+(DCA_SIZE_USDT*2)
+    DCA_SIZE_BTC:=(DCA_SIZE_USDT*2)/close
+    if DCA_BTC>0
+        DCA_AvgPrice:=((close*DCA_SIZE_BTC) + (DCA_AvgPrice*DCA_BTC))/(DCA_BTC+DCA_SIZE_BTC)
+        DCA_BTC:=DCA_BTC+DCA_SIZE_BTC
+    else
+        DCA_AvgPrice:=close
+        DCA_BTC:=DCA_SIZE_BTC
+
+// ----------------------------------------
+// Strategy // DCA Long
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END
+    Long_USDT_Value:=Long_USDT_Value+(DCA_SIZE_USDT*2)
+    if Long_BTC==0 and (HMA_Line[1]<HMA_Line or close>DCA_AvgPrice)
+        diff:=Long_USDT_Value/2
+        Long_USDT_Value:=Long_USDT_Value-diff
+        tempBTC:=math.abs(diff)/close
+        if diff>0
+            Long_AvgPrice:=((close*tempBTC)+(Long_AvgPrice*Long_BTC))/(Long_BTC+tempBTC)
+            Long_BTC:=Long_BTC+tempBTC
+    else
+        if Long_BTC>0 and Short_BTC==0 and close>Long_AvgPrice
+            Long_BTC_Value:=Long_BTC*close
+            diff:=(Long_USDT_Value-Long_BTC_Value)/2
+            tempBTC:=math.abs(diff)/close
+            if diff>0
+                Long_USDT_Value:=Long_USDT_Value-diff
+                Long_AvgPrice:=((close*tempBTC)+(Long_AvgPrice*Long_BTC))/(Long_BTC+tempBTC)
+                Long_BTC:=Long_BTC+tempBTC
+        if Long_BTC>0 and close<Long_AvgPrice and HMA_Line[1]>HMA_Line
+            // Sell BTC
+            tempUSDT:=Long_BTC*close
+            Long_AvgPrice:=0
+            Long_BTC:=0
+            // keep to USDT
+            Long_USDT_Value:=Long_USDT_Value+tempUSDT
+
+// ----------------------------------------
+// Strategy // DCA Short
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END
+    Short_USDT_Value:=Short_USDT_Value+(DCA_SIZE_USDT*2)
+    if Short_BTC==0  and (HMA_Line[1]>HMA_Line or close<DCA_AvgPrice)
+        diff:=Short_USDT_Value/2
+        Short_USDT_Value:=Short_USDT_Value-diff
+        tempBTC:=math.abs(diff)/close
+        if diff>0
+            Short_AvgPrice:=((close*tempBTC)+(Short_AvgPrice*Short_BTC))/(Short_BTC+tempBTC)
+            Short_BTC:=Short_BTC+tempBTC
+    else
+        if Short_BTC>0 and Long_BTC==0 and close<Short_AvgPrice
+            Short_BTC_Value:=(Short_BTC*Short_AvgPrice)-(Short_BTC*close)+(Short_BTC*Short_AvgPrice)
+            diff:=(Short_USDT_Value-Short_BTC_Value)/2
+            tempBTC:=math.abs(diff)/close
+            if diff>0
+                Short_USDT_Value:=Short_USDT_Value-diff
+                Short_AvgPrice:=((close*tempBTC)+(Short_AvgPrice*Short_BTC))/(Short_BTC+tempBTC)
+                Short_BTC:=Short_BTC+tempBTC
+        if Short_BTC>0 and close>Short_AvgPrice and HMA_Line[1]<HMA_Line
+            // Sell BTC
+            tempUSDT:=(Short_BTC*Short_AvgPrice)-(Short_BTC*close)+(Short_BTC*Short_AvgPrice)
+            Short_AvgPrice:=0
+            Short_BTC:=0
+            // keep to USDT
+            Short_USDT_Value:=Short_USDT_Value+tempUSDT
+
+// ----------------------------------------
+// Strategy // VA when Hedging
+// ----------------------------------------
+if time >= DATE_START and time < DATE_END
+    if Short_BTC>0 and Long_BTC>0 
+        if close>Long_AvgPrice 
+            Long_USDT_Value:=Long_USDT_Value+(DCA_SIZE_USDT*2)
+            Long_BTC_Value:=Long_BTC*close
+            diff:=(Long_USDT_Value-Long_BTC_Value)/2
+            tempBTC:=math.abs(diff)/close
+            if diff>0
+                Long_USDT_Value:=Long_USDT_Value-math.abs(diff)
+                if Long_BTC>0
+                    Long_AvgPrice:=((close*tempBTC) + (Long_AvgPrice*Long_BTC))/(Long_BTC+tempBTC)
+                    Long_BTC:=Long_BTC+tempBTC
+                else
+                    Long_AvgPrice:=close
+                    Long_BTC:=tempBTC
+            else 
+                if close>Long_AvgPrice
+                    // Sell BTC
+                    tempUSDT:=tempBTC*close
+                    // keep to USDT
+                    Long_USDT_Value:=Long_USDT_Value+tempUSDT
+                    Long_BTC:=Long_BTC-tempBTC
+        if close<Short_AvgPrice 
+            Short_USDT_Value:=Short_USDT_Value+(DCA_SIZE_USDT*2)
+            Short_BTC_Value:=(Short_BTC*Short_AvgPrice)-(Short_BTC*close)+(Short_BTC*Short_AvgPrice)
+            diff:=(Short_USDT_Value-Short_BTC_Value)/2
+            tempBTC:=math.abs(diff)/close
+            if diff>0 
+                Short_USDT_Value:=Short_USDT_Value-math.abs(diff)
+                if Short_BTC>0
+                    Short_AvgPrice:=((close*tempBTC) + (Short_AvgPrice*Short_BTC))/(Short_BTC+tempBTC)
+                    Short_BTC:=Short_BTC+tempBTC
+                else
+                    Short_AvgPrice:=close
+                    Short_BTC:=tempBTC
+            else 
+                if close>Short_AvgPrice
+                    // Sell BTC
+                    tempUSDT:=(tempBTC*Short_AvgPrice)-(tempBTC*close)+(tempBTC*Short_AvgPrice)
+                    // keep to USDT
+                    Short_USDT_Value:=Short_USDT_Value+tempUSDT
+                    Short_BTC:=Short_BTC-tempBTC
+
+// ----------------------------------------
+// Draw
+// ----------------------------------------
+// dca line
+plot(DCA_AvgPrice, "DCA_AvgPrice", DCA_AvgPrice[1]>0 and DCA_AvgPrice>0 ? #1368de : na  , linewidth=2)
+plot(Long_AvgPrice, "Long Avg Line", Long_AvgPrice[1]>0 and Long_AvgPrice>0 ? #8bf519 : na  , linewidth=2)
+plot(Short_AvgPrice, "Short Avg Price", Short_AvgPrice[1]>0 and Short_AvgPrice>0 ? #ee0f0f : na  , linewidth=2)
+
+// HMA Line 
+plot(HMA_Line, color=HMA_LineColor, title="Medium Trend", linewidth=1)
