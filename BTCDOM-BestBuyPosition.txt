@@ -1,0 +1,73 @@
+//@version=6
+strategy('BTCDOM-BestPosition', overlay = true, pyramiding=2000)
+BUY_SIDE = 'Long'
+
+//###############################################################
+// Input
+//###############################################################
+HIGH_LOW_RANGE = input.int(100,title="Range")
+var LONG_POSITION_SIZE = float(0.004) // Coin
+LONG_BUY_DAY = float(1) // DCA every x days
+// Long Buy DCA --------------------------
+var Long_LastBuyTime = float(time)
+var Long_isDaysPassed = bool(false)
+Long_isDaysPassed := na(Long_LastBuyTime) ? true : time - Long_LastBuyTime >= LONG_BUY_DAY * 24 * 60 * 60 * 1000 // in milli sec
+
+//###############################################################
+// Variable
+//###############################################################
+var isOverBought=bool(false)
+var isOverSold=bool(false)
+//------------------------------
+isOverBought:=false
+isOverSold:=false
+
+//###############################################################
+// Signal
+//###############################################################
+HighestLine = ta.ema(ta.highest(HIGH_LOW_RANGE),10)
+LowestLine = ta.ema(ta.lowest(HIGH_LOW_RANGE),10)
+
+// RSL Calculate ----------------------------
+RSI_change = ta.change(close)
+RSI_up = ta.rma(math.max(RSI_change, 0), 14)
+RSI_down = ta.rma(-math.min(RSI_change, 0), 14)
+RSI = RSI_down == 0 ? 100 : RSI_up == 0 ? 0 : 100 - 100 / (1 + RSI_up / RSI_down)
+if RSI>70 or RSI[1]>70
+    if RSI[1]>RSI
+        isOverBought:=true
+if RSI<30 or RSI[1]<30
+    if RSI[1]<RSI
+        isOverSold:=true
+
+//###############################################################
+// Check Buy / Sell Point
+//###############################################################
+var isBuyPoint = bool(false)
+var isSellPoint = bool(false)
+isBuyPoint:=false
+isSellPoint:=false
+if high>=HighestLine
+    if isOverBought
+        isSellPoint:=true
+if low<=LowestLine
+    if isOverSold
+        isBuyPoint:=true
+        if Long_isDaysPassed
+            Long_LastBuyTime := time
+            if BUY_SIDE == 'Long'
+                strategy.entry('L', strategy.long, qty =LONG_POSITION_SIZE, comment = str.tostring(LONG_POSITION_SIZE))
+
+// //###############################################################
+// // Drawing
+// //###############################################################
+
+// HMA Line 
+plot(HighestLine,color=#00FFFF99,title='HighestLine',linewidth=1)
+plot(LowestLine, color=#FFAA0099,title='LowestLine',linewidth=1)
+
+plotshape(isBuyPoint ? close : na, title="isBuyPoint" ,location=location.belowbar, style=shape.circle, size=size.tiny, color=#00FFFF)
+plotshape(isSellPoint? close : na, title="isSellPoint",location=location.abovebar, style=shape.circle, size=size.tiny, color=#FFAA00)
+
+// plotshape(isOverBought ? close : na, title="isOverBought" ,location=location.belowbar, style=shape.circle, size=size.tiny, color=#00FFFF)
+// plotshape(isOverSold? close : na, title="isOverSold",location=location.abovebar, style=shape.circle, size=size.tiny, color=#FFAA00)
