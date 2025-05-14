@@ -1,0 +1,84 @@
+//@version=6
+indicator('TeeLek KAMA', overlay = true)
+
+//###############################################################
+// Input
+//###############################################################
+IS_SHOW_DAY = input.bool(true,"Show day")
+IS_SHOW_12H = input.bool(true,"Show 12 hr")
+IS_SHOW_6H = input.bool(true,"Show 6 hr")
+IS_SHOW_4H = input.bool(true,"Show 4 hr")
+IS_SHOW_2H = input.bool(true,"Show 2 hr")
+IS_SHOW_1H = input.bool(true,"Show 1 hr")
+
+//###############################################################
+// KAMA
+//###############################################################
+KAMA_PriceChange = math.abs(close - close[10])
+KAMA_PriceChangeSum = math.sum(math.abs(close - close[1]), 10)
+KAMA_Fastest = 2/6
+KAMA_Slowest = 2/51
+KAMA_ER = KAMA_PriceChange / KAMA_PriceChangeSum
+KAMA_SC = math.pow(KAMA_ER * (KAMA_Fastest - KAMA_Slowest) + KAMA_Slowest, 2)
+KAMA_KAMA = 0.0
+KAMA_KAMA := na(KAMA_KAMA[1]) ? close : KAMA_KAMA[1] + KAMA_SC * (close - nz(KAMA_KAMA[1]))
+//-----------------------------------------------------------------------------
+KAMA_CloseLinePlot = plot(close, '', display = display.none)
+//-----------------------------------------------------------------------------
+
+colorUp = #9cff87
+colorDw = #f9396a
+
+//###############################################################
+// KAMA : DAY
+//###############################################################
+KAMADAY_KAMA0 = request.security(syminfo.tickerid, "D", KAMA_KAMA)
+KAMADAY_KAMA = ta.ema(KAMADAY_KAMA0,3)
+KAMADAY_Plot = plot(KAMADAY_KAMA, title = 'KAMA', color = IS_SHOW_DAY ? close>KAMADAY_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMADAY_Plot, KAMA_CloseLinePlot, math.max(KAMADAY_KAMA, close), KAMADAY_KAMA, IS_SHOW_DAY ? color.new(colorUp, 75) : na, IS_SHOW_DAY ? color.new(colorUp, 60) : na)
+fill(KAMADAY_Plot, KAMA_CloseLinePlot, KAMADAY_KAMA, math.min(KAMADAY_KAMA, close), IS_SHOW_DAY ? color.new(colorDw, 60) : na, IS_SHOW_DAY ? color.new(colorDw, 75) : na)
+
+//###############################################################
+// KAMA : 12H
+//###############################################################
+KAMA12H_KAMA0 = request.security(syminfo.tickerid, "720", KAMA_KAMA)
+KAMA12H_KAMA = ta.ema(KAMA12H_KAMA0,3)
+KAMA12H_Plot = plot(KAMA12H_KAMA, title = 'KAMA', color = IS_SHOW_12H ? close>KAMA12H_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMA12H_Plot, KAMA_CloseLinePlot, math.max(KAMA12H_KAMA, close), KAMA12H_KAMA, IS_SHOW_12H ? color.new(colorUp, 75) : na, IS_SHOW_12H ? color.new(colorUp, 60) : na)
+fill(KAMA12H_Plot, KAMA_CloseLinePlot, KAMA12H_KAMA, math.min(KAMA12H_KAMA, close), IS_SHOW_12H ? color.new(colorDw, 60) : na, IS_SHOW_12H ? color.new(colorDw, 75) : na)
+
+//###############################################################
+// KAMA : 6H
+//###############################################################
+KAMA6H_KAMA0 = request.security(syminfo.tickerid, "360", KAMA_KAMA)
+KAMA6H_KAMA = ta.ema(KAMA6H_KAMA0,3)
+KAMA6H_Plot = plot(KAMA6H_KAMA, title = 'KAMA', color = IS_SHOW_6H ? close>KAMA6H_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMA6H_Plot, KAMA_CloseLinePlot, math.max(KAMA6H_KAMA, close), KAMA6H_KAMA, IS_SHOW_6H ? color.new(colorUp, 75) : na, IS_SHOW_6H ? color.new(colorUp, 60) : na)
+fill(KAMA6H_Plot, KAMA_CloseLinePlot, KAMA6H_KAMA, math.min(KAMA6H_KAMA, close), IS_SHOW_6H ? color.new(colorDw, 60) : na, IS_SHOW_6H ? color.new(colorDw, 75) : na)
+
+//###############################################################
+// KAMA : 4H
+//###############################################################
+KAMA4H_KAMA0 = request.security(syminfo.tickerid, "240", KAMA_KAMA)
+KAMA4H_KAMA = ta.ema(KAMA4H_KAMA0,3)
+KAMA4H_Plot = plot(KAMA4H_KAMA, title = 'KAMA', color = IS_SHOW_4H ? close>KAMA4H_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMA4H_Plot, KAMA_CloseLinePlot, math.max(KAMA4H_KAMA, close), KAMA4H_KAMA, IS_SHOW_4H ? color.new(colorUp, 75) : na, IS_SHOW_4H ? color.new(colorUp, 60) : na)
+fill(KAMA4H_Plot, KAMA_CloseLinePlot, KAMA4H_KAMA, math.min(KAMA4H_KAMA, close), IS_SHOW_4H ? color.new(colorDw, 60) : na, IS_SHOW_4H ? color.new(colorDw, 75) : na)
+
+//###############################################################
+// KAMA : 2H
+//###############################################################
+KAMA2H_KAMA0 = request.security(syminfo.tickerid, "120", KAMA_KAMA)
+KAMA2H_KAMA = ta.ema(KAMA2H_KAMA0,3)
+KAMA2H_Plot = plot(KAMA2H_KAMA, title = 'KAMA', color = IS_SHOW_2H ? close>KAMA2H_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMA2H_Plot, KAMA_CloseLinePlot, math.max(KAMA2H_KAMA, close), KAMA2H_KAMA, IS_SHOW_2H ? color.new(colorUp, 75) : na, IS_SHOW_2H ? color.new(colorUp, 60) : na)
+fill(KAMA2H_Plot, KAMA_CloseLinePlot, KAMA2H_KAMA, math.min(KAMA2H_KAMA, close), IS_SHOW_2H ? color.new(colorDw, 60) : na, IS_SHOW_2H ? color.new(colorDw, 75) : na)
+
+//###############################################################
+// KAMA : 1H
+//###############################################################
+KAMA1H_KAMA0 = request.security(syminfo.tickerid, "60", KAMA_KAMA)
+KAMA1H_KAMA = ta.ema(KAMA1H_KAMA0,3)
+KAMA1H_Plot = plot(KAMA1H_KAMA, title = 'KAMA', color = IS_SHOW_1H ? close>KAMA1H_KAMA ? colorUp : colorDw : na, linewidth=1)
+fill(KAMA1H_Plot, KAMA_CloseLinePlot, math.max(KAMA1H_KAMA, close), KAMA1H_KAMA, IS_SHOW_1H ? color.new(colorUp, 75) : na, IS_SHOW_1H ? color.new(colorUp, 60) : na)
+fill(KAMA1H_Plot, KAMA_CloseLinePlot, KAMA1H_KAMA, math.min(KAMA1H_KAMA, close), IS_SHOW_1H ? color.new(colorDw, 60) : na, IS_SHOW_1H ? color.new(colorDw, 75) : na)
