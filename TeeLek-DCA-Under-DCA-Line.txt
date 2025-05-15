@@ -1,0 +1,65 @@
+//@version=6
+indicator('TeeLek-DCA-Under-DCA-Line', overlay = true)
+
+// ----------------------------------------
+// Function
+// ----------------------------------------
+drawVerticalLine(targetTime) =>
+    line.new(x1 = targetTime, y1 = low, x2 = targetTime, y2 = high, xloc = xloc.bar_time, extend = extend.both, color = color.new(#cccccc, 10), style = line.style_solid, width = 1)
+
+// ----------------------------------------
+// Input
+// ----------------------------------------
+DATE_START = input.time(timestamp('15 April 2021'), title = 'Start Date')
+BUY_INTERVAL = input(1, title = 'Buy Interval (bars)')
+
+// ----------------------------------------
+// Variable
+// ----------------------------------------
+var longCount = 0
+var longAvgPrice = float(0)
+var longCountDCA = 0
+var longAvgPriceDCA = float(0)
+var longAvgPriceDCAUnderDCA = float(0)
+var longCountDCAUnderDCA = 0
+var doBuy_Long=bool(false)
+doBuy_Long:=false
+
+// ----------------------------------------
+// Calculate
+// ----------------------------------------
+isBuy = bar_index % BUY_INTERVAL == 0
+
+// DCA All time ---------
+if isBuy and time >= DATE_START
+    longAvgPriceDCA := longAvgPriceDCA * longCountDCA + close
+    longCountDCA := longCountDCA + 1
+    if longCountDCA > 0
+        longAvgPriceDCA := longAvgPriceDCA / longCountDCA
+        longAvgPriceDCA
+    else
+        longAvgPriceDCA := close
+        longAvgPriceDCA
+
+// DCA Under DCA ---------
+if isBuy and time >= DATE_START and close < longAvgPriceDCA
+    longAvgPriceDCAUnderDCA := longAvgPriceDCAUnderDCA * longCountDCAUnderDCA + close
+    longCountDCAUnderDCA := longCountDCAUnderDCA + 1
+    doBuy_Long:=true
+    if longCountDCAUnderDCA > 0
+        longAvgPriceDCAUnderDCA := longAvgPriceDCAUnderDCA / longCountDCAUnderDCA
+        longAvgPriceDCAUnderDCA
+    else
+        longAvgPriceDCAUnderDCA := close
+        longAvgPriceDCAUnderDCA
+
+// ----------------------------------------
+// Draw Output 
+// ----------------------------------------
+drawVerticalLine(DATE_START)
+
+plot(longAvgPriceDCA, 'DCA Long',time >= DATE_START ? color.blue : na)
+plot(longAvgPriceDCAUnderDCA, 'DCA Long Under DCA Line',time >= DATE_START ? color.green : na)
+
+// Action Shape --------------
+plotshape(doBuy_Long ? close : na, title="isBuyPoint" ,location=location.belowbar, style=shape.circle, size=size.tiny, color=#00FFFF)
