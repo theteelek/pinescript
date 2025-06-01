@@ -1,0 +1,85 @@
+//@version=6
+indicator('TeeLek-CDC-ActionZone', overlay = true)
+
+IS_SHOW_WEEK = input.bool(true,"Show Week")
+IS_SHOW_DAY = input.bool(true,"Show Day")
+IS_SHOW_6H = input.bool(true,"Show 6 hr")
+IS_SHOW_4H = input.bool(true,"Show 4 hr")
+IS_SHOW_2H = input.bool(true,"Show 2 hr")
+IS_SHOW_1H = input.bool(true,"Show 1 hr")
+
+// Week ###########################################################
+CDCWeek_maFast0 = request.security(syminfo.tickerid, "W",ta.ema(close, 12))
+CDCWeek_maSlow0 = request.security(syminfo.tickerid, "W",ta.ema(close, 26))
+CDCWeek_maFast = ta.sma(CDCWeek_maFast0,3)
+CDCWeek_maSlow = ta.sma(CDCWeek_maSlow0,3)
+var CDCWeek_Color = color(na)
+if CDCWeek_maFast > CDCWeek_maSlow
+    CDCWeek_Color := #00FF0066
+else
+    CDCWeek_Color := #FF000066
+CDCWeek_FastPlot = plot(CDCWeek_maFast, color = na, linewidth = 1)
+CDCWeek_SlowPlot = plot(CDCWeek_maSlow, color = na, linewidth = 1)
+fill(CDCWeek_FastPlot,CDCWeek_SlowPlot,color=IS_SHOW_WEEK?CDCWeek_Color:na)
+
+// Day ###########################################################
+CDCDay_maFast0 = request.security(syminfo.tickerid, "D",ta.ema(close, 12))
+CDCDay_maSlow0 = request.security(syminfo.tickerid, "D",ta.ema(close, 26))
+CDCDay_maFast = ta.sma(CDCDay_maFast0,3)
+CDCDay_maSlow = ta.sma(CDCDay_maSlow0,3)
+var CDCDay_Color = color(na)
+if CDCDay_maFast > CDCDay_maSlow
+    CDCDay_Color := #00FF0066
+else
+    CDCDay_Color := #FF000066
+CDCDay_FastPlot = plot(CDCDay_maFast, color = na, linewidth = 1)
+CDCDay_SlowPlot = plot(CDCDay_maSlow, color = na, linewidth = 1)
+fill(CDCDay_FastPlot,CDCDay_SlowPlot,color=IS_SHOW_DAY?CDCDay_Color:na)
+
+// 6H ###########################################################
+CDC6H_maFast = request.security(syminfo.tickerid, "360",ta.ema(close, 12))
+CDC6H_maSlow = request.security(syminfo.tickerid, "360",ta.ema(close, 26))
+var CDC6H_Color = color(na)
+if CDC6H_maFast > CDC6H_maSlow
+    CDC6H_Color := #00FF0066
+else
+    CDC6H_Color := #FF000066
+CDC6H_FastPlot = plot(CDC6H_maFast, color = na, linewidth = 1)
+CDC6H_SlowPlot = plot(CDC6H_maSlow, color = na, linewidth = 1)
+fill(CDC6H_FastPlot,CDC6H_SlowPlot,color=IS_SHOW_6H?CDC6H_Color:na)
+
+// 4H ###########################################################
+CDC4H_maFast = request.security(syminfo.tickerid, "240",ta.ema(close, 12))
+CDC4H_maSlow = request.security(syminfo.tickerid, "240",ta.ema(close, 26))
+var CDC4H_Color = color(na)
+if CDC4H_maFast > CDC4H_maSlow
+    CDC4H_Color := #00FF0066
+else
+    CDC4H_Color := #FF000066
+CDC4H_FastPlot = plot(CDC4H_maFast, color = na, linewidth = 1)
+CDC4H_SlowPlot = plot(CDC4H_maSlow, color = na, linewidth = 1)
+fill(CDC4H_FastPlot,CDC4H_SlowPlot,color=IS_SHOW_4H?CDC4H_Color:na)
+
+// 2H ###########################################################
+CDC2H_maFast = request.security(syminfo.tickerid, "120",ta.ema(close, 12))
+CDC2H_maSlow = request.security(syminfo.tickerid, "120",ta.ema(close, 26))
+var CDC2H_Color = color(na)
+if CDC2H_maFast > CDC2H_maSlow
+    CDC2H_Color := #00FF0066
+else
+    CDC2H_Color := #FF000066
+CDC2H_FastPlot = plot(CDC2H_maFast, color = na, linewidth = 1)
+CDC2H_SlowPlot = plot(CDC2H_maSlow, color = na, linewidth = 1)
+fill(CDC2H_FastPlot,CDC2H_SlowPlot,color=IS_SHOW_2H?CDC2H_Color:na)
+
+// 1H ###########################################################
+CDC1H_maFast = request.security(syminfo.tickerid, "60",ta.ema(close, 12))
+CDC1H_maSlow = request.security(syminfo.tickerid, "60",ta.ema(close, 26))
+var CDC1H_Color = color(na)
+if CDC1H_maFast > CDC1H_maSlow
+    CDC1H_Color := #00FF0066
+else
+    CDC1H_Color := #FF000066
+CDC1H_FastPlot = plot(CDC1H_maFast, color = na, linewidth = 1)
+CDC1H_SlowPlot = plot(CDC1H_maSlow, color = na, linewidth = 1)
+fill(CDC1H_FastPlot,CDC1H_SlowPlot,color=IS_SHOW_1H?CDC1H_Color:na)
