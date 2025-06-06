@@ -1,0 +1,151 @@
+//@version=6
+strategy('Lab-Doi-02', overlay = true, pyramiding=2000)
+BUY_SIDE = 'None'
+
+//###############################################################
+// Input
+//###############################################################
+DATE_START = input.time(timestamp('16 Dec 2024 01:00'), title = 'Start Date')
+DATE_END = input.time(timestamp('5 Jun 2025 14:00'), title = 'Start Date')
+//--------------------------------
+var LONG_MIN_POSITION_SIZE = float(0.10) // Coin
+//--------------------------------
+
+//###############################################################
+// Function
+//###############################################################
+drawVerticalLine(targetTime, colorTime) =>
+    line.new(x1 = targetTime, y1 = low, x2 = targetTime, y2 = high, xloc = xloc.bar_time, extend = extend.both, color = colorTime, style = line.style_dashed, width = 1)
+
+//###############################################################
+// Variable
+//###############################################################
+var isActive = bool(false)
+var isEnd = bool(false)
+//--------------------------------
+var isLongOpen = bool(false)
+var Long_AvgPrice = float(0) // USDT
+var Long_SumOfBTC = float(0) // Coin
+var Long_MaxDD = float(0)
+var Long_TmpProfit=float(0)
+var Long_AccumulateProfit = float(0)
+var Long_WinCount = int(0)
+var Long_LossCount = int(0)
+var Long_GrossWin = float(0)
+var Long_GrossLoss = float(0)
+
+//###############################################################
+// Config
+//###############################################################
+CDCcolorUp = #00FF0066
+CDCcolorDw = #FF000066
+BINANCE_FEE_RATE = float(0.04) // 0.02 for buy + 0.02 for sell 
+
+//###############################################################
+// Signal
+//###############################################################
+CDC_maFast = request.security(syminfo.tickerid, "D",ta.ema(close, 12))
+CDC_maSlow = request.security(syminfo.tickerid, "D",ta.ema(close, 26))
+var CDC_Color = color(na)
+CDC_Color := CDC_maFast > CDC_maSlow ? CDCcolorUp : CDCcolorDw
+
+//###############################################################
+// Calculate
+//###############################################################
+if time >= DATE_START 
+    isActive := true
+else
+    isActive := false
+if time >= DATE_END
+    isEnd := true
+else
+    isEnd := false
+
+//###############################################################
+// Strategy : Open First Long
+//###############################################################
+if isActive and isLongOpen==false and CDC_maFast>CDC_maSlow and barstate.isconfirmed 
+    //------------------------------
+    // Open Long
+    //------------------------------
+    if isLongOpen==false and Long_SumOfBTC==0
+        Long_AvgPrice := close
+        Long_SumOfBTC := LONG_MIN_POSITION_SIZE
+        isLongOpen := true
+        if BUY_SIDE == 'Long'
+            strategy.entry('L', strategy.long, qty = Long_SumOfBTC, comment = str.tostring(Long_SumOfBTC))
+
+//###############################################################
+// Strategy : Close Long when CDC Red
+//###############################################################
+if isActive and CDC_maFast<CDC_maSlow and isLongOpen==true and barstate.isconfirmed 
+    //------------------------------
+    // Close Long
+    //------------------------------
+    if isLongOpen==true and Long_SumOfBTC>0 and close<Long_AvgPrice 
+        // Save Profit -------------
+        TmpFee=((BINANCE_FEE_RATE*close*Long_SumOfBTC)/100)+((BINANCE_FEE_RATE*Long_AvgPrice*Long_SumOfBTC)/100)
+        Long_TmpProfit := (close*Long_SumOfBTC)-(Long_AvgPrice*Long_SumOfBTC)-TmpFee
+        Long_AccumulateProfit := Long_AccumulateProfit + Long_TmpProfit
+        if Long_TmpProfit>0
+            Long_WinCount := Long_WinCount + 1
+            Long_GrossWin := Long_GrossWin + Long_TmpProfit
+        else
+            Long_LossCount := Long_LossCount + 1
+            Long_GrossLoss := Long_GrossLoss + Long_TmpProfit
+        // Close Long -------------
+        if BUY_SIDE == 'Long'
+            strategy.close('L', qty = Long_SumOfBTC, comment = str.tostring(Long_SumOfBTC))
+        Long_AvgPrice := 0
+        Long_SumOfBTC := 0
+        isLongOpen := false
+
+//###############################################################
+// Drawing
+//###############################################################
+drawVerticalLine(DATE_START, color.blue)
+drawVerticalLine(DATE_END, color.blue)
+
+// CDC -----------------------------------------------
+CDC_FastPlot = plot(CDC_maFast, color = na, linewidth = 1)
+CDC_SlowPlot = plot(CDC_maSlow, color = na, linewidth = 1)
+fill(CDC_FastPlot,CDC_SlowPlot,color=isActive?CDC_Color:na)
+
+//--------------------------------------
+plot(Long_AvgPrice, color = isActive and isEnd==false and Long_AvgPrice[1]>0 and Long_AvgPrice>0 ? #00FF00 : na, linewidth=3)
+
+//--------------------------------------
+if isActive and isEnd==false
+    if isLongOpen==true and Long_SumOfBTC>0
+        Long_TmpProfit := (close*Long_SumOfBTC)-(Long_AvgPrice*Long_SumOfBTC)
+    else 
+        Long_TmpProfit := 0
+    if Long_TmpProfit<0
+        if Long_MaxDD==0
+            Long_MaxDD:=Long_TmpProfit
+        if Long_MaxDD>Long_TmpProfit
+            Long_MaxDD:=Long_TmpProfit
+//--------------------------------------
+var myTableLong = table.new(position.bottom_left, 4, 14)
+//--------------------------------------
+// table.cell(myTableLong, 0, 0, 'Long ', bgcolor = #00FF00, text_color = color.black, text_halign = text.align_right)
+// table.cell(myTableLong, 1, 0, str.format('{0, number,#.###}', Long_SumOfBTC)+' BTC', bgcolor = #111111, text_color = color.blue, text_halign = text.align_left)
+// table.cell(myTableLong, 0, 1, 'Open ', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+// table.cell(myTableLong, 1, 1, str.format('{0, number,#.##}', Long_TmpProfit) + ' USDT', bgcolor = #111111, text_color = Long_TmpProfit > 0 ? color.green : color.red, text_halign = text.align_left)
+// //--------------------------------------
+
+//--------------------------------------
+table.cell(myTableLong, 0, 0, 'Long ', bgcolor = #00FF00, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 0, str.format('{0, number,#.###}', Long_SumOfBTC)+' BTC', bgcolor = #111111, text_color = color.blue, text_halign = text.align_left)
+table.cell(myTableLong, 0, 1, 'Open ', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 1, str.format('{0, number,#.##}', Long_TmpProfit) + ' USDT', bgcolor = #111111, text_color = Long_TmpProfit > 0 ? color.green : color.red, text_halign = text.align_left)
+table.cell(myTableLong, 0, 2, 'Win ', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 2, str.format('{0, number,#}', Long_WinCount) + ' ครั้ง / ' + str.format('{0, number,#.##}', Long_GrossWin) + ' USDT', bgcolor = #111111, text_color = Long_GrossWin > 0 ? color.green : color.red, text_halign = text.align_left)
+table.cell(myTableLong, 0, 3, 'Loss ', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 3, str.format('{0, number,#}', Long_LossCount) + ' ครั้ง / ' + str.format('{0, number,#.##}', Long_GrossLoss) + ' USDT', bgcolor = #111111, text_color = Long_GrossLoss > 0 ? color.green : color.red, text_halign = text.align_left)
+table.cell(myTableLong, 0, 4, 'Profit', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 4, str.format('{0, number,#.##}', Long_GrossWin+Long_GrossLoss+Long_TmpProfit) + ' USDT ', bgcolor = #111111, text_color = Long_GrossWin+Long_GrossLoss+Long_TmpProfit > 0 ? color.green : color.red, text_halign = text.align_left)
+table.cell(myTableLong, 0, 5, 'Max.DD ', bgcolor = #111111, text_color = color.white, text_halign = text.align_right)
+table.cell(myTableLong, 1, 5, str.format('{0, number,#.##}', Long_MaxDD) + ' USDT', bgcolor = #111111, text_color = Long_MaxDD > 0 ? color.green : color.red, text_halign = text.align_left)
+table.cell(myTableLong, 0, 6, ' ', bgcolor = #111111)
+//--------------------------------------
