@@ -1,0 +1,186 @@
+//@version=6
+indicator('TeeLek-HedgingRibbon', overlay = true)
+ 
+//###############################################################
+// Input
+//###############################################################
+
+//###############################################################
+// Function
+//###############################################################
+drawVerticalLine(targetTime, colorTime) =>
+    line.new(x1 = targetTime, y1 = low, x2 = targetTime, y2 = high, xloc = xloc.bar_time, extend = extend.both, color = colorTime, style = line.style_dashed, width = 1)
+// HMA
+hma(src, length) =>
+    halfLength = math.round(length / 2)
+    sqrtLength = math.round(math.sqrt(length))
+    wma1 = ta.wma(src, halfLength)
+    wma2 = ta.wma(src, length)
+    hmaValue = ta.wma(2 * wma1 - wma2, sqrtLength)
+    hmaValue
+
+//###############################################################
+// Config
+//###############################################################
+HMA_ColorNormal = #CCCCCC
+HMA_ColorUp = #00FF00
+HMA_ColorDw = #FF0000
+NotDownTrendColor=#00FFFF
+LowestLine_AllTimeHighColor=#FFAA00
+BanBG=#666666
+CDCcolorUp = #00FF0066
+CDCcolorDw = #FF000066
+
+//###############################################################
+// Variable
+//###############################################################
+var isOverBought=bool(false)
+var isOverSold=bool(false)
+//------------------------------
+isOverBought:=false
+isOverSold:=false
+//--------------------------------
+var isShortOpen = bool(false)
+var Short_AvgPrice = float(0) // USDT
+var Short_SumOfBTC = float(0) // Coin
+//--------------------------------
+var doBuy_Short = bool(false)
+var doSell_Short = bool(false)
+doBuy_Short := false
+doSell_Short := false
+//--------------------------------
+
+//###############################################################
+// Signal
+//###############################################################
+LowestLine6 = ta.ema(ta.lowest(600),10)
+LowestLine = ta.sma(LowestLine6,100)
+var LowestLine_AllTimeHigh = float(0)
+if LowestLine_AllTimeHigh==0 and LowestLine>0
+    LowestLine_AllTimeHigh:=LowestLine
+if LowestLine_AllTimeHigh<LowestLine
+    LowestLine_AllTimeHigh:=LowestLine
+// -----------------
+HighestLine6 = ta.ema(ta.highest(600),10)
+HighestLine = ta.sma(HighestLine6,100)
+var NotDownTrend = float(0)
+if LowestLine<LowestLine_AllTimeHigh
+    if NotDownTrend>HighestLine
+        NotDownTrend:=HighestLine
+    if NotDownTrend<LowestLine
+        NotDownTrend:=LowestLine
+else
+    if NotDownTrend<LowestLine
+        NotDownTrend:=LowestLine
+    else
+        NotDownTrend:=LowestLine_AllTimeHigh
+// HMA -----------------
+HMA_Line0 = request.security(syminfo.tickerid,"120",hma(close, 21))
+HMA_Line = ta.ema(HMA_Line0,120)
+var HMA_LineColor = color(na)
+// HMAs -----------------
+HMAs_Line0 = request.security(syminfo.tickerid,"30",hma(close, 21))
+HMAs_Line = ta.ema(HMAs_Line0,30)
+var HMAs_LineColor = color(na)
+if HMAs_Line>LowestLine_AllTimeHigh
+    HMAs_LineColor :=  HMA_ColorNormal
+else
+    if HMAs_Line > HMAs_Line[1]
+        HMAs_LineColor :=  HMA_ColorUp
+    else
+        HMAs_LineColor := HMA_ColorDw
+//------------------------------------
+if HMA_Line>LowestLine_AllTimeHigh
+    HMA_LineColor :=  HMA_ColorNormal
+else
+    if HMA_Line > HMA_Line[1] and HMAs_Line > HMAs_Line[1] 
+        HMA_LineColor :=  HMA_ColorUp
+    else
+        if HMA_Line < HMA_Line[1] and HMAs_Line < HMAs_Line[1] 
+            HMA_LineColor := HMA_ColorDw
+        else
+            HMA_LineColor :=  HMA_ColorNormal
+// RSL Calculate ----------------------------
+HighestLine100 = ta.ema(ta.highest(100),10)
+LowestLine100 = ta.ema(ta.lowest(100),10)
+// RSL Calculate ----------------------------
+RSI_change = ta.change(close)
+RSI_up = ta.rma(math.max(RSI_change, 0), 14)
+RSI_down = ta.rma(-math.min(RSI_change, 0), 14)
+RSI = RSI_down == 0 ? 100 : RSI_up == 0 ? 0 : 100 - 100 / (1 + RSI_up / RSI_down)
+if RSI>70 or RSI[1]>70
+    if RSI[1]>RSI
+        isOverBought:=true
+if RSI<30 or RSI[1]<30
+    if RSI[1]<RSI
+        isOverSold:=true
+// CDC Action Zone
+CDC_maFast = request.security(syminfo.tickerid, "720",ta.ema(close, 12))
+CDC_maSlow = request.security(syminfo.tickerid, "720",ta.ema(close, 26))
+var CDC_Color = color(na)
+CDC_Color := CDC_maFast > CDC_maSlow ? CDCcolorUp : CDCcolorDw
+
+//###############################################################
+// Calculate
+//###############################################################
+// Check Buy / Sell Point
+var isBuyPoint = bool(false)
+var isSellPoint = bool(false)
+isBuyPoint:=false
+isSellPoint:=false
+if high>=HighestLine
+    if isOverBought
+        isSellPoint:=true
+if low<=LowestLine
+    if isOverSold
+        isBuyPoint:=true
+
+//###############################################################
+// Strategy : Hedging Open Short on NotDownTrend
+//###############################################################
+if HMA_Line<NotDownTrend and NotDownTrend>0 and HMA_Line>0 and isShortOpen==false and Short_SumOfBTC==0
+    Short_AvgPrice := close
+    Short_SumOfBTC := 1
+    isShortOpen := true
+    doBuy_Short := true
+
+//###############################################################
+// Strategy : Hedging Close Short on NotDownTrend
+//###############################################################
+if HMA_Line>NotDownTrend and NotDownTrend>0 and HMA_Line>0 and isShortOpen==true and Short_SumOfBTC>0
+    Short_AvgPrice := 0
+    Short_SumOfBTC := 0
+    isShortOpen := false
+    doSell_Short := true
+
+//###############################################################
+// Drawing
+//###############################################################
+
+// Action Shape --------------
+plotshape(isBuyPoint ? close : na, title="isBuyPoint" ,location=location.belowbar, style=shape.circle, size=size.tiny, color=#00FFFF)
+plotshape(isSellPoint? close : na, title="isSellPoint",location=location.abovebar, style=shape.circle, size=size.tiny, color=#FFAA00)
+plotshape(doBuy_Short ? close : na, title="doBuy_Short", location = location.top, style = shape.triangledown, size = size.tiny, color = #FF0000)
+plotshape(doSell_Short ? close : na, title="doSell_Short", location = location.top, style = shape.xcross, size = size.tiny, color = #FF0000)
+
+LowestLinePlot=plot(LowestLine, color=na,title='LowestLine',linewidth=1)
+HighestLinePlot=plot(HighestLine, color=na,title='HighestLine',linewidth=1)
+NotDownTrendPlot=plot(NotDownTrend, color=NotDownTrend>0 and NotDownTrend[1]>0 ? NotDownTrendColor : na,title='NotDownTrend',linewidth=1)
+LowestLine_AllTimeHighPlot=plot(LowestLine_AllTimeHigh, color=LowestLine_AllTimeHigh>0 and LowestLine_AllTimeHigh[1]>0 ? LowestLine_AllTimeHighColor :na ,title='LowestLine_AllTimeHigh',linewidth=3)
+// Fill
+fill(HighestLinePlot,LowestLinePlot,color=color.new(BanBG,85))
+fill(LowestLine_AllTimeHighPlot,LowestLinePlot,color=color.new(LowestLine_AllTimeHighColor,80))
+fill(NotDownTrendPlot,LowestLine_AllTimeHighPlot,color=color.new(NotDownTrendColor,85))
+
+// HMA Line -----------------------------------------------
+HMA_Line_Plot=plot(HMA_Line,color=color.new(HMA_LineColor,50), title='HMA',linewidth=4)
+
+// HMAs Line -----------------------------------------------
+// HMAs_Line_Plot=plot(HMAs_Line,color=HMAs_LineColor, title='HMAs',linewidth=1)
+
+plot(Short_AvgPrice, color = Short_AvgPrice[1]>0 and Short_AvgPrice>0 ? #FF0000 : na, linewidth=3)
+
+// CDC -----------------------------------------------
+CDC_FastPlot = plot(CDC_maFast, color = na, linewidth = 1)
+CDC_SlowPlot = plot(CDC_maSlow, color = na, linewidth = 1)
+fill(CDC_FastPlot,CDC_SlowPlot,color=CDC_Color)
